@@ -68,10 +68,13 @@ import java.util.concurrent.Executor;
 import io.reactivex.Observable;
 import io.reactivex.ObservableEmitter;
 import io.reactivex.ObservableOnSubscribe;
+import io.reactivex.ObservableSource;
 import io.reactivex.Observer;
 import io.reactivex.Scheduler;
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.disposables.Disposable;
+import io.reactivex.functions.Consumer;
+import io.reactivex.functions.Function;
 import io.reactivex.schedulers.Schedulers;
 import io.reactivex.subjects.PublishSubject;
 
@@ -524,27 +527,23 @@ public class SubsamplingScaleImageView extends View {
                 uri = Uri.parse(ContentResolver.SCHEME_ANDROID_RESOURCE + "://" + getContext().getPackageName() + "/" + imageSource.getResource());
             }
             if (imageSource.getTile() || sRegion != null) {
-                tilesInit(this, getContext(), regionDecoderFactory, uri)
-                        .subscribeOn(scheduler)
-                        .observeOn(AndroidSchedulers.mainThread())
-                        .subscribe(new Observer<int[]>() {
-                            @Override
-                            public void onSubscribe(Disposable disposable) { }
-
-                            @Override
-                            public void onNext(int[] ints) {
-                                if (null != getContext())
-                                    onTilesInited(decoder, ints[0], ints[1], ints[2]);
+                tilesInit(this, regionDecoderFactory, uri)
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .doOnNext(new Consumer<int[]>() {
+                        @Override
+                        public void accept(final int[] ints) throws Exception {
+                            if (null != getContext()) {
+                                onTilesInited(decoder, ints[0], ints[1], ints[2]);
                             }
+                        }
+                    })
+                    .doOnError(new Consumer<Throwable>() {
+                        @Override
+                        public void accept(final Throwable throwable) throws Exception {
+                            imageLoadError.onNext(throwable);
 
-                            @Override
-                            public void onError(Throwable throwable) {
-                                imageLoadError.onNext(throwable);
-                            }
-
-                            @Override
-                            public void onComplete() { }
-                        });
+                        }
+                    }).subscribe();
 
             } else {
                 // Load the bitmap as a single image.
@@ -1686,41 +1685,70 @@ public class SubsamplingScaleImageView extends View {
         }
     }
 
-    private Observable<int[]> tilesInit(final SubsamplingScaleImageView view, Context context, DecoderFactory<? extends ImageRegionDecoder> decoderFactory, final Uri source) {
+    private Observable<int[]> tilesInit(
+        SubsamplingScaleImageView view, DecoderFactory<? extends ImageRegionDecoder> decoderFactory, final Uri source) {
+
         final WeakReference<SubsamplingScaleImageView> viewRef = new WeakReference<>(view);
-        final WeakReference<Context> contextRef = new WeakReference<>(context);
-        final WeakReference<DecoderFactory<? extends ImageRegionDecoder>> decoderFactoryRef = new WeakReference<DecoderFactory<? extends ImageRegionDecoder>>(decoderFactory);
+        final WeakReference<Context> contextRef = new WeakReference<>(view.getContext());
+        final WeakReference<DecoderFactory<? extends ImageRegionDecoder>> decoderFactoryRef =
+            new WeakReference<DecoderFactory<? extends ImageRegionDecoder>>(decoderFactory);
 
-        return Observable.create(new ObservableOnSubscribe<int[]>() {
+        return Observable.create(new ObservableOnSubscribe<ImageRegionDecoder>() {
             @Override
-            public void subscribe(ObservableEmitter<int[]> observableEmitter) throws Exception {
-                String sourceUri = source.toString();
-                Context context = contextRef.get();
-                SubsamplingScaleImageView view = viewRef.get();
-                DecoderFactory<? extends ImageRegionDecoder> decoderFactory = decoderFactoryRef.get();
-                if (context != null && decoderFactory != null && view != null) {
-                    view.debug("TilesInitTask.doInBackground");
-                    decoder = decoderFactory.make();
-                    Point dimensions = decoder.init(context, source);
-                    int sWidth = dimensions.x;
-                    int sHeight = dimensions.y;
-
-                    context = contextRef.get();
-                    view = viewRef.get();
-
-                    // check weak again
-                    if (null != context && null != view) {
-                        int exifOrientation = getExifOrientation(context, sourceUri);
-                        if (view.sRegion != null) {
-                            sWidth = view.sRegion.width();
-                            sHeight = view.sRegion.height();
-                        }
-                        observableEmitter.onNext(new int[]{sWidth, sHeight, exifOrientation});
+            public void subscribe(
+                final ObservableEmitter<ImageRegionDecoder> observableEmitter) throws Exception {
+                if (!observableEmitter.isDisposed()) {
+                    final DecoderFactory<? extends ImageRegionDecoder> factory = decoderFactoryRef.get();
+                    if (null != factory) {
+                        observableEmitter.onNext(factory.make());
                     }
                 }
-                observableEmitter.onComplete();
             }
-        });
+        }).doOnNext(new Consumer<ImageRegionDecoder>() {
+            @Override
+            public void accept(final ImageRegionDecoder imageRegionDecoder) throws Exception {
+                decoder = imageRegionDecoder;
+            }
+        }).flatMap(new Function<ImageRegionDecoder, ObservableSource<int[]>>() {
+            @Override
+            public ObservableSource<int[]> apply(final ImageRegionDecoder imageRegionDecoder) throws Exception {
+                return Observable.create(new ObservableOnSubscribe<int[]>() {
+                    @Override
+                    public void subscribe(final ObservableEmitter<int[]> observableEmitter) throws Exception {
+                        if (observableEmitter.isDisposed()) {
+                            return;
+                        }
+
+                        final Context context = contextRef.get();
+                        final SubsamplingScaleImageView view = viewRef.get();
+
+                        if (null != view && null != context) {
+
+                            imageRegionDecoder.init(context, source)
+                                .doOnNext(new Consumer<Point>() {
+                                    @Override
+                                    public void accept(final Point point) throws Exception {
+                                        if (observableEmitter.isDisposed()) {
+                                            return;
+                                        }
+
+                                        int sWidth = point.x;
+                                        int sHeight = point.y;
+                                        int exifOrientation = getExifOrientation(context, source.toString());
+                                        if (view.sRegion != null) {
+                                            sWidth = view.sRegion.width();
+                                            sHeight = view.sRegion.height();
+                                        }
+                                        observableEmitter.onNext(new int[]{sWidth, sHeight, exifOrientation});
+                                        observableEmitter.onComplete();
+                                    }
+                                })
+                                .subscribe();
+                        }
+                    }
+                });
+            }
+        }).subscribeOn(Schedulers.single());
     }
 
     public void setExecutor(Executor executor) {
