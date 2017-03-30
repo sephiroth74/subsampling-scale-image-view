@@ -490,27 +490,27 @@ public class SubsamplingScaleImageView extends View {
                 }
 
                 bitmapLoad(this, getContext(), bitmapDecoderFactory, uri, true)
-                        .subscribeOn(scheduler)
-                        .observeOn(AndroidSchedulers.mainThread())
-                        .subscribe(new Observer<Pair<Bitmap, Integer>>() {
-                            @Override
-                            public void onSubscribe(Disposable disposable) { }
+                    .subscribeOn(scheduler)
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe(new Observer<Pair<Bitmap, Integer>>() {
+                        @Override
+                        public void onSubscribe(Disposable disposable) { }
 
-                            @Override
-                            public void onNext(Pair<Bitmap, Integer> result) {
-                                if (null != getContext() && null != result && null != result.first && null != result.second) {
-                                    onPreviewLoaded(result.first);
-                                }
+                        @Override
+                        public void onNext(Pair<Bitmap, Integer> result) {
+                            if (null != getContext() && null != result && null != result.first && null != result.second) {
+                                onPreviewLoaded(result.first);
                             }
+                        }
 
-                            @Override
-                            public void onError(Throwable throwable) {
-                                previewLoadError.onNext(throwable);
-                            }
+                        @Override
+                        public void onError(Throwable throwable) {
+                            previewLoadError.onNext(throwable);
+                        }
 
-                            @Override
-                            public void onComplete() { }
-                        });
+                        @Override
+                        public void onComplete() { }
+                    });
 
             }
         }
@@ -529,48 +529,46 @@ public class SubsamplingScaleImageView extends View {
             if (imageSource.getTile() || sRegion != null) {
                 tilesInit(this, regionDecoderFactory, uri)
                     .observeOn(AndroidSchedulers.mainThread())
-                    .doOnNext(new Consumer<int[]>() {
+                    .subscribe(new Consumer<int[]>() {
                         @Override
                         public void accept(final int[] ints) throws Exception {
                             if (null != getContext()) {
                                 onTilesInited(decoder, ints[0], ints[1], ints[2]);
                             }
                         }
-                    })
-                    .doOnError(new Consumer<Throwable>() {
+                    }, new Consumer<Throwable>() {
                         @Override
                         public void accept(final Throwable throwable) throws Exception {
                             imageLoadError.onNext(throwable);
-
                         }
-                    }).subscribe();
+                    });
 
             } else {
                 // Load the bitmap as a single image.
                 bitmapLoad(this, getContext(), bitmapDecoderFactory, uri, false)
-                        .subscribeOn(scheduler)
-                        .observeOn(AndroidSchedulers.mainThread())
-                        .subscribe(new Observer<Pair<Bitmap, Integer>>() {
-                            @Override
-                            public void onSubscribe(Disposable disposable) {
-                            }
+                    .subscribeOn(scheduler)
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe(new Observer<Pair<Bitmap, Integer>>() {
+                        @Override
+                        public void onSubscribe(Disposable disposable) {
+                        }
 
-                            @Override
-                            public void onNext(Pair<Bitmap, Integer> result) {
-                                if (null != getContext() && null != result && null != result.first && null != result.second) {
-                                    onImageLoaded(result.first, result.second, false);
-                                }
+                        @Override
+                        public void onNext(Pair<Bitmap, Integer> result) {
+                            if (null != getContext() && null != result && null != result.first && null != result.second) {
+                                onImageLoaded(result.first, result.second, false);
                             }
+                        }
 
-                            @Override
-                            public void onError(Throwable throwable) {
-                                imageLoadError.onNext(throwable);
-                            }
+                        @Override
+                        public void onError(Throwable throwable) {
+                            imageLoadError.onNext(throwable);
+                        }
 
-                            @Override
-                            public void onComplete() {
-                            }
-                        });
+                        @Override
+                        public void onComplete() {
+                        }
+                    });
             }
         }
     }
@@ -1349,31 +1347,30 @@ public class SubsamplingScaleImageView extends View {
             decoder = null;
 
             bitmapLoad(this, getContext(), bitmapDecoderFactory, uri, false)
-                    .subscribeOn(scheduler)
-                    .observeOn(AndroidSchedulers.mainThread())
-                    .subscribe(new Observer<Pair<Bitmap, Integer>>() {
-                        @Override
-                        public void onSubscribe(Disposable disposable) {
+                .subscribeOn(scheduler)
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(new Observer<Pair<Bitmap, Integer>>() {
+                    @Override
+                    public void onSubscribe(Disposable disposable) {
+                    }
+
+                    @Override
+                    public void onNext(Pair<Bitmap, Integer> result) {
+                        if (null != getContext() && null != result && null != result.first && null != result.second) {
+                            onImageLoaded(result.first, result.second, false);
                         }
+                    }
 
-                        @Override
-                        public void onNext(Pair<Bitmap, Integer> result) {
-                            if(null != getContext() && null != result && null != result.first && null != result.second) {
-                                onImageLoaded(result.first, result.second, false);
-                            }
-                        }
+                    @Override
+                    public void onError(Throwable throwable) {
+                        imageLoadError.onNext(throwable);
+                    }
 
-                        @Override
-                        public void onError(Throwable throwable) {
-                            imageLoadError.onNext(throwable);
-                        }
+                    @Override
+                    public void onComplete() {
 
-                        @Override
-                        public void onComplete() {
-
-                        }
-                    });
-
+                    }
+                });
 
         } else {
 
@@ -1382,31 +1379,31 @@ public class SubsamplingScaleImageView extends View {
             List<Tile> baseGrid = tileMap.get(fullImageSampleSize);
             for (final Tile baseTile : baseGrid) {
                 tileLoad(this, decoder, baseTile)
-                        .subscribeOn(scheduler)
-                        .observeOn(AndroidSchedulers.mainThread())
-                        .subscribe(new Observer<Bitmap>() {
-                            @Override
-                            public void onSubscribe(Disposable disposable) {
-                            }
+                    .subscribeOn(scheduler)
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe(new Observer<Bitmap>() {
+                        @Override
+                        public void onSubscribe(Disposable disposable) {
+                        }
 
-                            @Override
-                            public void onNext(Bitmap bitmap) {
-                                if (bitmap != null) {
-                                    baseTile.bitmap = bitmap;
-                                    baseTile.loading = false;
-                                    onTileLoaded();
-                                }
+                        @Override
+                        public void onNext(Bitmap bitmap) {
+                            if (bitmap != null) {
+                                baseTile.bitmap = bitmap;
+                                baseTile.loading = false;
+                                onTileLoaded();
                             }
+                        }
 
-                            @Override
-                            public void onError(Throwable t) {
-                                tileLoadError.onNext(t);
-                            }
+                        @Override
+                        public void onError(Throwable t) {
+                            tileLoadError.onNext(t);
+                        }
 
-                            @Override
-                            public void onComplete() {
-                            }
-                        });
+                        @Override
+                        public void onComplete() {
+                        }
+                    });
             }
             refreshRequiredTiles(true);
 
@@ -1444,29 +1441,29 @@ public class SubsamplingScaleImageView extends View {
                         tile.visible = true;
                         if (!tile.loading && tile.bitmap == null && load) {
                             tileLoad(this, decoder, tile)
-                                    .subscribeOn(scheduler)
-                                    .observeOn(AndroidSchedulers.mainThread())
-                                    .subscribe(new Observer<Bitmap>() {
-                                        @Override
-                                        public void onSubscribe(Disposable disposable) { }
+                                .subscribeOn(scheduler)
+                                .observeOn(AndroidSchedulers.mainThread())
+                                .subscribe(new Observer<Bitmap>() {
+                                    @Override
+                                    public void onSubscribe(Disposable disposable) { }
 
-                                        @Override
-                                        public void onNext(Bitmap bitmap) {
-                                            if (bitmap != null) {
-                                                tile.bitmap = bitmap;
-                                                tile.loading = false;
-                                                onTileLoaded();
-                                            }
+                                    @Override
+                                    public void onNext(Bitmap bitmap) {
+                                        if (bitmap != null) {
+                                            tile.bitmap = bitmap;
+                                            tile.loading = false;
+                                            onTileLoaded();
                                         }
+                                    }
 
-                                        @Override
-                                        public void onError(Throwable t) {
-                                            tileLoadError.onNext(t);
-                                        }
+                                    @Override
+                                    public void onError(Throwable t) {
+                                        tileLoadError.onNext(t);
+                                    }
 
-                                        @Override
-                                        public void onComplete() { }
-                                    });
+                                    @Override
+                                    public void onComplete() { }
+                                });
                         }
                     } else if (tile.sampleSize != fullImageSampleSize) {
                         tile.visible = false;
@@ -1724,8 +1721,9 @@ public class SubsamplingScaleImageView extends View {
 
                         if (null != view && null != context) {
 
-                            imageRegionDecoder.init(context, source)
-                                .doOnNext(new Consumer<Point>() {
+                            imageRegionDecoder
+                                .init(context, source)
+                                .subscribe(new Consumer<Point>() {
                                     @Override
                                     public void accept(final Point point) throws Exception {
                                         if (observableEmitter.isDisposed()) {
@@ -1742,8 +1740,12 @@ public class SubsamplingScaleImageView extends View {
                                         observableEmitter.onNext(new int[]{sWidth, sHeight, exifOrientation});
                                         observableEmitter.onComplete();
                                     }
-                                })
-                                .subscribe();
+                                }, new Consumer<Throwable>() {
+                                    @Override
+                                    public void accept(final Throwable throwable) throws Exception {
+                                        observableEmitter.onError(throwable);
+                                    }
+                                });
                         }
                     }
                 });
@@ -1840,10 +1842,13 @@ public class SubsamplingScaleImageView extends View {
         invalidate();
     }
 
-    Observable<Pair<Bitmap, Integer>> bitmapLoad(SubsamplingScaleImageView view, Context context, DecoderFactory<? extends ImageDecoder> decoderFactory, final Uri source, boolean preview) {
+    Observable<Pair<Bitmap, Integer>> bitmapLoad(
+        SubsamplingScaleImageView view, Context context, DecoderFactory<? extends ImageDecoder> decoderFactory, final Uri source,
+        boolean preview) {
         final WeakReference<SubsamplingScaleImageView> viewRef = new WeakReference<>(view);
         final WeakReference<Context> contextRef = new WeakReference<>(context);
-        final WeakReference<DecoderFactory<? extends ImageDecoder>> decoderFactoryRef = new WeakReference<DecoderFactory<? extends ImageDecoder>>(decoderFactory);
+        final WeakReference<DecoderFactory<? extends ImageDecoder>> decoderFactoryRef =
+            new WeakReference<DecoderFactory<? extends ImageDecoder>>(decoderFactory);
 
         return Observable.create(new ObservableOnSubscribe<Pair<Bitmap, Integer>>() {
             @Override
