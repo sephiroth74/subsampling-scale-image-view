@@ -1662,17 +1662,17 @@ public class SubsamplingScaleImageView extends View {
     }
 
     private Observable<int[]> tilesInit(
-        SubsamplingScaleImageView view, DecoderFactory<? extends ImageRegionDecoder> decoderFactory, final Uri source) {
+            SubsamplingScaleImageView view, DecoderFactory<? extends ImageRegionDecoder> decoderFactory, final Uri source) {
 
         final WeakReference<SubsamplingScaleImageView> viewRef = new WeakReference<>(view);
         final WeakReference<Context> contextRef = new WeakReference<>(view.getContext());
         final WeakReference<DecoderFactory<? extends ImageRegionDecoder>> decoderFactoryRef =
-            new WeakReference<DecoderFactory<? extends ImageRegionDecoder>>(decoderFactory);
+                new WeakReference<DecoderFactory<? extends ImageRegionDecoder>>(decoderFactory);
 
         return Observable.create(new ObservableOnSubscribe<ImageRegionDecoder>() {
             @Override
             public void subscribe(
-                final ObservableEmitter<ImageRegionDecoder> observableEmitter) throws Exception {
+                    final ObservableEmitter<ImageRegionDecoder> observableEmitter) throws Exception {
                 final DecoderFactory<? extends ImageRegionDecoder> factory = decoderFactoryRef.get();
                 if (!observableEmitter.isDisposed() && null != factory) {
                     observableEmitter.onNext(factory.make());
@@ -1683,49 +1683,30 @@ public class SubsamplingScaleImageView extends View {
             public void accept(final ImageRegionDecoder imageRegionDecoder) throws Exception {
                 decoder = imageRegionDecoder;
             }
-        }).flatMap(new Function<ImageRegionDecoder, ObservableSource<int[]>>() {
+        }).concatMap(new Function<ImageRegionDecoder, Observable<Point>>() {
             @Override
-            public ObservableSource<int[]> apply(final ImageRegionDecoder imageRegionDecoder) throws Exception {
-                return Observable.create(new ObservableOnSubscribe<int[]>() {
-                    @Override
-                    public void subscribe(final ObservableEmitter<int[]> observableEmitter) throws Exception {
-                        if (observableEmitter.isDisposed()) {
-                            return;
-                        }
+            public Observable<Point> apply(ImageRegionDecoder imageRegionDecoder) throws Exception {
+                final Context context = contextRef.get();
+                if (null != context)
+                    return imageRegionDecoder.init(contextRef.get(), source);
+                return null;
+            }
+        }).map(new Function<Point, int[]>() {
+            @Override
+            public int[] apply(Point point) throws Exception {
+                final Context context = contextRef.get();
+                final SubsamplingScaleImageView view = viewRef.get();
 
-                        final Context context = contextRef.get();
-                        final SubsamplingScaleImageView view = viewRef.get();
+                if (null == context || null == view) return null;
 
-                        if (null != view && null != context) {
-
-                            imageRegionDecoder
-                                .init(context, source)
-                                .subscribe(new Consumer<Point>() {
-                                    @Override
-                                    public void accept(final Point point) throws Exception {
-                                        if (observableEmitter.isDisposed()) {
-                                            return;
-                                        }
-
-                                        int sWidth = point.x;
-                                        int sHeight = point.y;
-                                        int exifOrientation = getExifOrientation(context, source.toString());
-                                        if (view.sRegion != null) {
-                                            sWidth = view.sRegion.width();
-                                            sHeight = view.sRegion.height();
-                                        }
-                                        observableEmitter.onNext(new int[]{sWidth, sHeight, exifOrientation});
-                                        observableEmitter.onComplete();
-                                    }
-                                }, new Consumer<Throwable>() {
-                                    @Override
-                                    public void accept(final Throwable throwable) throws Exception {
-                                        observableEmitter.onError(throwable);
-                                    }
-                                });
-                        }
-                    }
-                });
+                int sWidth = point.x;
+                int sHeight = point.y;
+                int exifOrientation = getExifOrientation(context, source.toString());
+                if (view.sRegion != null) {
+                    sWidth = view.sRegion.width();
+                    sHeight = view.sRegion.height();
+                }
+                return new int[]{sWidth, sHeight, exifOrientation};
             }
         }).subscribeOn(Schedulers.single());
     }
