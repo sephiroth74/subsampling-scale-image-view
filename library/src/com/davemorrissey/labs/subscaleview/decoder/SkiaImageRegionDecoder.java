@@ -20,7 +20,6 @@ import java.util.List;
 import io.reactivex.Observable;
 import io.reactivex.ObservableEmitter;
 import io.reactivex.ObservableOnSubscribe;
-import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.schedulers.Schedulers;
 
 /**
@@ -89,25 +88,38 @@ public class SkiaImageRegionDecoder implements ImageRegionDecoder {
                         }
                     }
                 }
-                observableEmitter.onNext(new Point(decoder.getWidth(), decoder.getHeight()));
-                observableEmitter.onComplete();
+                if (!observableEmitter.isDisposed()) {
+                    observableEmitter.onNext(new Point(decoder.getWidth(), decoder.getHeight()));
+                    observableEmitter.onComplete();
+                }
             }
         }).subscribeOn(Schedulers.single());
 
     }
 
     @Override
-    public Bitmap decodeRegion(Rect sRect, int sampleSize) {
-        synchronized (decoderLock) {
-            BitmapFactory.Options options = new BitmapFactory.Options();
-            options.inSampleSize = sampleSize;
-            options.inPreferredConfig = Config.RGB_565;
-            Bitmap bitmap = decoder.decodeRegion(sRect, options);
-            if (bitmap == null) {
-                throw new RuntimeException("Skia image decoder returned null bitmap - image format may not be supported");
+    public Observable<Bitmap> decodeRegion(final Rect sRect, final int sampleSize) {
+        return Observable.create(new ObservableOnSubscribe<Bitmap>() {
+            @Override
+            public void subscribe(ObservableEmitter<Bitmap> observableEmitter) throws Exception {
+                synchronized (decoderLock) {
+                    BitmapFactory.Options options = new BitmapFactory.Options();
+                    options.inSampleSize = sampleSize;
+                    options.inPreferredConfig = Config.RGB_565;
+                    Bitmap bitmap = decoder.decodeRegion(sRect, options);
+
+                    if (observableEmitter.isDisposed()) return;
+
+                    if (bitmap == null) {
+                        observableEmitter.onError(new RuntimeException("Skia image decoder returned null bitmap - image format may not be supported"));
+                    } else {
+                        observableEmitter.onNext(bitmap);
+                        observableEmitter.onComplete();
+                    }
+                }
+
             }
-            return bitmap;
-        }
+        }).subscribeOn(Schedulers.single());
     }
 
     @Override

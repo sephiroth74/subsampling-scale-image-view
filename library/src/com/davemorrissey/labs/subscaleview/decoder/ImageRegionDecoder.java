@@ -22,8 +22,7 @@ public interface ImageRegionDecoder {
      * Resource: android.resource://com.example.app/drawable/picture
      * @param context Application context. A reference may be held, but must be cleared on recycle.
      * @param uri URI of the image.
-     * @return Dimensions of the image.
-     * @throws Exception if initialisation fails.
+     * @return An Observable with the dimensions of the image.
      */
     Observable<Point> init(Context context, Uri uri);
 
@@ -34,9 +33,9 @@ public interface ImageRegionDecoder {
      * even if the decoder implementation supports it.
      * @param sRect Source image rectangle to decode.
      * @param sampleSize Sample size.
-     * @return The decoded region. It is safe to return null if decoding fails.
+     * @return An Observable with the decoded region
      */
-    Bitmap decodeRegion(Rect sRect, int sampleSize);
+    Observable<Bitmap> decodeRegion(Rect sRect, int sampleSize);
 
     /**
      * Status check. Should return false before initialisation and after recycle.
