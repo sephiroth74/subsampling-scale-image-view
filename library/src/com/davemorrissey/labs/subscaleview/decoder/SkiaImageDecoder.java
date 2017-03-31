@@ -16,6 +16,7 @@ import java.util.List;
 import io.reactivex.Observable;
 import io.reactivex.ObservableEmitter;
 import io.reactivex.ObservableOnSubscribe;
+import io.reactivex.schedulers.Schedulers;
 
 /**
  * Default implementation of {@link com.davemorrissey.labs.subscaleview.decoder.ImageDecoder}
@@ -98,6 +99,6 @@ public class SkiaImageDecoder implements ImageDecoder {
                     observableEmitter.onComplete();
                 }
             }
-        });
+        }).subscribeOn(Schedulers.single());
     }
 }
