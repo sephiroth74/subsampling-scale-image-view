@@ -1,61 +1,61 @@
-apply plugin: 'android-library'
-apply plugin: 'maven'
-apply plugin: 'signing'
+apply plugin: 'com.android.library'
 
-group = 'com.davemorrissey.labs'
-archivesBaseName = 'subsampling-scale-image-view'
-version = '3.6.0'
+// apply plugin: 'maven'
+// apply plugin: 'signing'
 
-signing {
-    required { has("release") && gradle.taskGraph.hasTask("uploadArchives") }
-    sign configurations.archives
-}
+// group = 'it.sephiroth.android.library.fork.subsampling-scale-image-view'
+// archivesBaseName = 'library'
+// version = '3.6.1'
 
-uploadArchives {
-    configuration = configurations.archives
-    repositories.mavenDeployer {
-        beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
+// signing {
+//     required { has("release") && gradle.taskGraph.hasTask("uploadArchives") }
+//     sign configurations.archives
+// }
 
-        repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2/") {
-            authentication(userName: sonatypeUsername, password: sonatypePassword)
-        }
+// uploadArchives {
+//     configuration = configurations.archives
+//     repositories.mavenDeployer {
+//         beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
 
-        pom.project {
-            name 'SubsamplingScaleImageView'
-            packaging 'aar'
-            description 'Custom image views for Android with pinch to zoom, panning, rotation and animation support, with easy extension so you can add your own overlays and touch event detection.'
-            url 'https://github.com/davemorrissey/subsampling-scale-image-view'
+//         repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2/") {
+//             authentication(userName: sonatypeUsername, password: sonatypePassword)
+//         }
 
-            scm {
-                url 'scm:git@github.com:davemorrissey/subsampling-scale-image-view.git'
-                connection 'scm:git@github.com:davemorrissey/subsampling-scale-image-view.git'
-                developerConnection 'scm:git@github.com:davemorrissey/subsampling-scale-image-view.git'
-            }
+//         pom.project {
+//             name 'SubsamplingScaleImageView'
+//             packaging 'aar'
+//             description 'Custom image views for Android with pinch to zoom, panning, rotation and animation support, with easy extension so you can add your own overlays and touch event detection.'
+//             url 'https://github.com/davemorrissey/subsampling-scale-image-view'
 
-            licenses {
-                license {
-                    name 'The Apache Software License, Version 2.0'
-                    url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
-                    distribution 'repo'
-                }
-            }
+//             scm {
+//                 url 'scm:git@github.com:davemorrissey/subsampling-scale-image-view.git'
+//                 connection 'scm:git@github.com:davemorrissey/subsampling-scale-image-view.git'
+//                 developerConnection 'scm:git@github.com:davemorrissey/subsampling-scale-image-view.git'
+//             }
 
-            developers {
-                developer {
-                    id 'davemorrissey'
-                    name 'Dave Morrissey'
-                }
-            }
-        }
-    }
-}
+//             licenses {
+//                 license {
+//                     name 'The Apache Software License, Version 2.0'
+//                     url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+//                     distribution 'repo'
+//                 }
+//             }
+
+//             developers {
+//                 developer {
+//                     id 'davemorrissey'
+//                     name 'Dave Morrissey'
+//                 }
+//             }
+//         }
+//     }
+// }
 
 dependencies {
-    compile fileTree(dir: 'libs', include: '*.jar')
-    compile 'com.android.support:exifinterface:25.3.1'
-    compile 'com.android.support:support-annotations:25.3.1'
-    compile 'io.reactivex.rxjava2:rxandroid:2.0.1'
-    compile 'io.reactivex.rxjava2:rxjava:2.0.8'
+    implementation 'com.android.support:exifinterface:25.3.1'
+    api 'com.android.support:support-annotations:25.3.1'
+    api 'io.reactivex.rxjava2:rxandroid:2.0.1'
+    api 'io.reactivex.rxjava2:rxjava:2.0.8'
 }
 
 android {
@@ -86,3 +86,5 @@ android {
         release.setRoot('build-types/release')
     }
 }
+
+apply from: 'https://raw.githubusercontent.com/sephiroth74/gradle-mvn-push/master/gradle-mvn-push.gradle'
