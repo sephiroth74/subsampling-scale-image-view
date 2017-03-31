@@ -1,4 +1,4 @@
-apply plugin: 'android'
+apply plugin: 'com.android.application'
 
 allprojects {
     repositories {
@@ -17,8 +17,8 @@ dependencies {
 }
 
 android {
-    compileSdkVersion 23
-    buildToolsVersion "23.0.3"
+    compileSdkVersion 25
+    buildToolsVersion "26.0.0-rc1"
 
     sourceSets {
         main {
