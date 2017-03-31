@@ -10,7 +10,12 @@ import android.net.Uri;
 import android.text.TextUtils;
 
 import java.io.InputStream;
+import java.lang.ref.WeakReference;
 import java.util.List;
+
+import io.reactivex.Observable;
+import io.reactivex.ObservableEmitter;
+import io.reactivex.ObservableOnSubscribe;
 
 /**
  * Default implementation of {@link com.davemorrissey.labs.subscaleview.decoder.ImageDecoder}
@@ -25,55 +30,74 @@ public class SkiaImageDecoder implements ImageDecoder {
     private static final String RESOURCE_PREFIX = ContentResolver.SCHEME_ANDROID_RESOURCE + "://";
 
     @Override
-    public Bitmap decode(Context context, Uri uri) throws Exception {
-        String uriString = uri.toString();
-        BitmapFactory.Options options = new BitmapFactory.Options();
-        Bitmap bitmap;
-        options.inPreferredConfig = Bitmap.Config.RGB_565;
-        if (uriString.startsWith(RESOURCE_PREFIX)) {
-            Resources res;
-            String packageName = uri.getAuthority();
-            if (context.getPackageName().equals(packageName)) {
-                res = context.getResources();
-            } else {
-                PackageManager pm = context.getPackageManager();
-                res = pm.getResourcesForApplication(packageName);
-            }
+    public Observable<Bitmap> decode(Context context, final Uri uri) throws Exception {
 
-            int id = 0;
-            List<String> segments = uri.getPathSegments();
-            int size = segments.size();
-            if (size == 2 && segments.get(0).equals("drawable")) {
-                String resName = segments.get(1);
-                id = res.getIdentifier(resName, "drawable", packageName);
-            } else if (size == 1 && TextUtils.isDigitsOnly(segments.get(0))) {
-                try {
-                    id = Integer.parseInt(segments.get(0));
-                } catch (NumberFormatException ignored) {
+        final WeakReference<Context> contextRef = new WeakReference<>(context);
+
+        return Observable.create(new ObservableOnSubscribe<Bitmap>() {
+            @Override
+            public void subscribe(ObservableEmitter<Bitmap> observableEmitter) throws Exception {
+                final Context context1 = contextRef.get();
+                if (null == context1) {
+                    return;
+                }
+
+                String uriString = uri.toString();
+                BitmapFactory.Options options = new BitmapFactory.Options();
+                Bitmap bitmap;
+                options.inPreferredConfig = Bitmap.Config.RGB_565;
+                if (uriString.startsWith(RESOURCE_PREFIX)) {
+                    Resources res;
+                    String packageName = uri.getAuthority();
+                    if (context1.getPackageName().equals(packageName)) {
+                        res = context1.getResources();
+                    } else {
+                        PackageManager pm = context1.getPackageManager();
+                        res = pm.getResourcesForApplication(packageName);
+                    }
+
+                    int id = 0;
+                    List<String> segments = uri.getPathSegments();
+                    int size = segments.size();
+                    if (size == 2 && segments.get(0).equals("drawable")) {
+                        String resName = segments.get(1);
+                        id = res.getIdentifier(resName, "drawable", packageName);
+                    } else if (size == 1 && TextUtils.isDigitsOnly(segments.get(0))) {
+                        try {
+                            id = Integer.parseInt(segments.get(0));
+                        } catch (NumberFormatException ignored) {
+                        }
+                    }
+
+                    bitmap = BitmapFactory.decodeResource(context1.getResources(), id, options);
+                } else if (uriString.startsWith(ASSET_PREFIX)) {
+                    String assetName = uriString.substring(ASSET_PREFIX.length());
+                    bitmap = BitmapFactory.decodeStream(context1.getAssets().open(assetName), null, options);
+                } else if (uriString.startsWith(FILE_PREFIX)) {
+                    bitmap = BitmapFactory.decodeFile(uriString.substring(FILE_PREFIX.length()), options);
+                } else {
+                    InputStream inputStream = null;
+                    try {
+                        ContentResolver contentResolver = context1.getContentResolver();
+                        inputStream = contentResolver.openInputStream(uri);
+                        bitmap = BitmapFactory.decodeStream(inputStream, null, options);
+                    } finally {
+                        if (inputStream != null) {
+                            try {
+                                inputStream.close();
+                            } catch (Exception e) {
+                            }
+                        }
+                    }
+                }
+
+                if (!observableEmitter.isDisposed()) {
+                    if (bitmap == null)
+                        observableEmitter.onError(new RuntimeException("Skia image region decoder returned null bitmap - image format may not be supported"));
+                    observableEmitter.onNext(bitmap);
+                    observableEmitter.onComplete();
                 }
             }
-
-            bitmap = BitmapFactory.decodeResource(context.getResources(), id, options);
-        } else if (uriString.startsWith(ASSET_PREFIX)) {
-            String assetName = uriString.substring(ASSET_PREFIX.length());
-            bitmap = BitmapFactory.decodeStream(context.getAssets().open(assetName), null, options);
-        } else if (uriString.startsWith(FILE_PREFIX)) {
-            bitmap = BitmapFactory.decodeFile(uriString.substring(FILE_PREFIX.length()), options);
-        } else {
-            InputStream inputStream = null;
-            try {
-                ContentResolver contentResolver = context.getContentResolver();
-                inputStream = contentResolver.openInputStream(uri);
-                bitmap = BitmapFactory.decodeStream(inputStream, null, options);
-            } finally {
-                if (inputStream != null) {
-                    try { inputStream.close(); } catch (Exception e) { }
-                }
-            }
-        }
-        if (bitmap == null) {
-            throw new RuntimeException("Skia image region decoder returned null bitmap - image format may not be supported");
-        }
-        return bitmap;
+        });
     }
 }

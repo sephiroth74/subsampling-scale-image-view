@@ -6,6 +6,8 @@ import android.graphics.Point;
 import android.graphics.Rect;
 import android.net.Uri;
 
+import io.reactivex.Observable;
+
 /**
  * Interface for image decoding classes, allowing the default {@link android.graphics.BitmapRegionDecoder}
  * based on the Skia library to be replaced with a custom class.
@@ -20,9 +22,8 @@ public interface ImageDecoder {
      * Resource: android.resource://com.example.app/drawable/picture
      * @param context Application context. A reference may be held, but must be cleared on recycle.
      * @param uri URI of the image.
-     * @return Dimensions of the image.
-     * @throws Exception if initialisation fails.
+     * @return Observable with the dimensions of the image.
      */
-    Bitmap decode(Context context, Uri uri) throws Exception;
+    Observable<Bitmap> decode(Context context, Uri uri) throws Exception;
 
 }
