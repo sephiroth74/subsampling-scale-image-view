@@ -6,6 +6,7 @@ import android.net.Uri;
 
 import com.davemorrissey.labs.subscaleview.decoder.ImageDecoder;
 
+import io.reactivex.Observable;
 import rapid.decoder.BitmapDecoder;
 
 /**
@@ -19,8 +20,7 @@ import rapid.decoder.BitmapDecoder;
 public class RapidImageDecoder implements ImageDecoder {
 
     @Override
-    public Bitmap decode(Context context, Uri uri) throws Exception {
-        return BitmapDecoder.from(context, uri).useBuiltInDecoder(true).config(Bitmap.Config.RGB_565).decode();
+    public Observable<Bitmap> decode(Context context, Uri uri) throws Exception {
+        return Observable.just(BitmapDecoder.from(context, uri).useBuiltInDecoder(true).config(Bitmap.Config.RGB_565).decode());
     }
-
 }

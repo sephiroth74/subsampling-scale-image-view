@@ -13,6 +13,9 @@ import android.graphics.Point;
 import android.graphics.Rect;
 import android.net.Uri;
 import android.text.TextUtils;
+import android.util.Pair;
+
+import com.davemorrissey.labs.subscaleview.SubsamplingScaleImageView;
 
 import java.io.InputStream;
 import java.util.List;
@@ -38,10 +41,10 @@ public class SkiaImageRegionDecoder implements ImageRegionDecoder {
     private static final String RESOURCE_PREFIX = ContentResolver.SCHEME_ANDROID_RESOURCE + "://";
 
     @Override
-    public Observable<Point> init(final Context context, final Uri uri) {
-        return Observable.create(new ObservableOnSubscribe<Point>() {
+    public Observable<Pair<Point, Point>> init(final Context context, final Uri uri) {
+        return Observable.create(new ObservableOnSubscribe<Pair<Point, Point>>() {
             @Override
-            public void subscribe(final ObservableEmitter<Point> observableEmitter) throws Exception {
+            public void subscribe(final ObservableEmitter<Pair<Point, Point>> observableEmitter) throws Exception {
                 String uriString = uri.toString();
                 if (uriString.startsWith(RESOURCE_PREFIX)) {
                     Resources res;
@@ -89,7 +92,9 @@ public class SkiaImageRegionDecoder implements ImageRegionDecoder {
                     }
                 }
                 if (!observableEmitter.isDisposed()) {
-                    observableEmitter.onNext(new Point(decoder.getWidth(), decoder.getHeight()));
+                    observableEmitter.onNext(Pair.create(new Point(decoder.getWidth(), decoder.getHeight()),
+                        SubsamplingScaleImageView.getDefaultTileSize()
+                    ));
                     observableEmitter.onComplete();
                 }
             }

@@ -192,6 +192,8 @@ public class SubsamplingScaleImageView extends View {
     private int maxTileWidth = TILE_SIZE_AUTO;
     private int maxTileHeight = TILE_SIZE_AUTO;
 
+    public static final Point getDefaultTileSize() { return new Point(TILE_SIZE_AUTO, TILE_SIZE_AUTO); }
+
     // Gesture detection settings
     private boolean panEnabled = true;
     private boolean zoomEnabled = true;
@@ -523,7 +525,7 @@ public class SubsamplingScaleImageView extends View {
                         @Override
                         public void accept(final int[] ints) throws Exception {
                             if (null != getContext()) {
-                                onTilesInited(decoder, ints[0], ints[1], ints[2]);
+                                onTilesInited(decoder, ints[0], ints[1], ints[2], ints[3], ints[4]);
                             }
                         }
                     }, new Consumer<Throwable>() {
@@ -1683,30 +1685,32 @@ public class SubsamplingScaleImageView extends View {
             public void accept(final ImageRegionDecoder imageRegionDecoder) throws Exception {
                 decoder = imageRegionDecoder;
             }
-        }).concatMap(new Function<ImageRegionDecoder, Observable<Point>>() {
+        }).concatMap(new Function<ImageRegionDecoder, Observable<Pair<Point, Point>>>() {
             @Override
-            public Observable<Point> apply(ImageRegionDecoder imageRegionDecoder) throws Exception {
+            public Observable<Pair<Point, Point>> apply(ImageRegionDecoder imageRegionDecoder) throws Exception {
                 final Context context = contextRef.get();
                 if (null != context)
                     return imageRegionDecoder.init(contextRef.get(), source);
                 return null;
             }
-        }).map(new Function<Point, int[]>() {
+        }).map(new Function<Pair<Point, Point>, int[]>() {
             @Override
-            public int[] apply(Point point) throws Exception {
+            public int[] apply(Pair<Point, Point> point) throws Exception {
                 final Context context = contextRef.get();
                 final SubsamplingScaleImageView view = viewRef.get();
 
                 if (null == context || null == view) return null;
 
-                int sWidth = point.x;
-                int sHeight = point.y;
+                int sWidth = point.first.x;
+                int sHeight = point.first.y;
+                final int sTileWidth = point.second.x;
+                final int sTileHeight = point.second.y;
                 int exifOrientation = getExifOrientation(context, source.toString());
                 if (view.sRegion != null) {
                     sWidth = view.sRegion.width();
                     sHeight = view.sRegion.height();
                 }
-                return new int[]{sWidth, sHeight, exifOrientation};
+                return new int[]{sWidth, sHeight, sTileWidth, sTileHeight, exifOrientation};
             }
         }).subscribeOn(Schedulers.single());
     }
@@ -1714,7 +1718,8 @@ public class SubsamplingScaleImageView extends View {
     /**
      * Called by worker task when decoder is ready and image size and EXIF orientation is known.
      */
-    private synchronized void onTilesInited(ImageRegionDecoder decoder, int sWidth, int sHeight, int sOrientation) {
+    private synchronized void onTilesInited(
+        ImageRegionDecoder decoder, int sWidth, int sHeight, int sTileWidth, int sTileHeight, int sOrientation) {
         debug("onTilesInited sWidth=%d, sHeight=%d, sOrientation=%d", sWidth, sHeight, orientation);
         // If actual dimensions don't match the declared size, reset everything.
         if (this.sWidth > 0 && this.sHeight > 0 && (this.sWidth != sWidth || this.sHeight != sHeight)) {
@@ -1735,6 +1740,7 @@ public class SubsamplingScaleImageView extends View {
         this.sWidth = sWidth;
         this.sHeight = sHeight;
         this.sOrientation = sOrientation;
+        setMaxTileSize(sTileWidth, sTileHeight);
         checkReady();
         if (!checkImageLoaded() && maxTileWidth > 0 && maxTileWidth != TILE_SIZE_AUTO && maxTileHeight > 0 && maxTileHeight != TILE_SIZE_AUTO && getWidth() > 0 && getHeight() > 0) {
             initialiseBaseLayer(new Point(maxTileWidth, maxTileHeight));

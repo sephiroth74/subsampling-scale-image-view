@@ -5,9 +5,14 @@ import android.graphics.Bitmap;
 import android.graphics.Point;
 import android.graphics.Rect;
 import android.net.Uri;
+import android.util.Pair;
 
+import com.davemorrissey.labs.subscaleview.SubsamplingScaleImageView;
 import com.davemorrissey.labs.subscaleview.decoder.ImageRegionDecoder;
 
+import io.reactivex.Observable;
+import io.reactivex.ObservableEmitter;
+import io.reactivex.ObservableOnSubscribe;
 import rapid.decoder.BitmapDecoder;
 
 /**
@@ -23,19 +28,27 @@ public class RapidImageRegionDecoder implements ImageRegionDecoder {
     private BitmapDecoder decoder;
 
     @Override
-    public Point init(Context context, Uri uri) throws Exception {
+    public Observable<Pair<Point, Point>> init(Context context, Uri uri) {
         decoder = BitmapDecoder.from(context, uri);
         decoder.useBuiltInDecoder(true);
-        return new Point(decoder.sourceWidth(), decoder.sourceHeight());
+        return Observable.just(
+            Pair.create(new Point(decoder.sourceWidth(), decoder.sourceHeight()), SubsamplingScaleImageView.getDefaultTileSize())
+        );
     }
 
     @Override
-    public synchronized Bitmap decodeRegion(Rect sRect, int sampleSize) {
-        try {
-            return decoder.reset().region(sRect).scale(sRect.width()/sampleSize, sRect.height()/sampleSize).decode();
-        } catch (Exception e) {
-            return null;
-        }
+    public synchronized Observable<Bitmap> decodeRegion(final Rect sRect, final int sampleSize) {
+        return Observable.create(new ObservableOnSubscribe<Bitmap>() {
+            @Override
+            public void subscribe(final ObservableEmitter<Bitmap> observableEmitter) throws Exception {
+                try {
+                    observableEmitter.onNext(
+                        decoder.reset().region(sRect).scale(sRect.width() / sampleSize, sRect.height() / sampleSize).decode());
+                } catch (Exception e) {
+                    observableEmitter.onError(e);
+                }
+            }
+        });
     }
 
     @Override

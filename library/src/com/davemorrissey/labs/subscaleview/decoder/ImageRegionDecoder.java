@@ -5,6 +5,7 @@ import android.graphics.Bitmap;
 import android.graphics.Point;
 import android.graphics.Rect;
 import android.net.Uri;
+import android.util.Pair;
 
 import io.reactivex.Observable;
 
@@ -24,7 +25,7 @@ public interface ImageRegionDecoder {
      * @param uri URI of the image.
      * @return An Observable with the dimensions of the image.
      */
-    Observable<Point> init(Context context, Uri uri);
+    Observable<Pair<Point, Point>> init(Context context, Uri uri);
 
     /**
      * Decode a region of the image with the given sample size. This method is called off the UI thread so it can safely
