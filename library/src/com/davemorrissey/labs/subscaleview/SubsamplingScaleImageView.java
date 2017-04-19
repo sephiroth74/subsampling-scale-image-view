@@ -340,6 +340,9 @@ public class SubsamplingScaleImageView extends View {
     //The logical density of the display
     private float density;
 
+    // If set to true will always use the region decoder
+    private boolean alwaysUseTiling = false;
+
 
     public SubsamplingScaleImageView(Context context, AttributeSet attr) {
         super(context, attr);
@@ -1320,7 +1323,7 @@ public class SubsamplingScaleImageView extends View {
             fullImageSampleSize /= 2;
         }
 
-        if (fullImageSampleSize == 1 && sRegion == null && sWidth() < maxTileDimensions.x && sHeight() < maxTileDimensions.y) {
+        if ((fullImageSampleSize == 1 && sRegion == null && sWidth() < maxTileDimensions.x && sHeight() < maxTileDimensions.y) && !alwaysUseTiling) {
 
             // Whole image is required at native resolution, and is smaller than the canvas max bitmap size.
             // Use BitmapDecoder for better image support.
@@ -2010,6 +2013,18 @@ public class SubsamplingScaleImageView extends View {
             this.sPendingCenter = state.getCenter();
             invalidate();
         }
+    }
+
+    /**
+     * Override the internal default behavior of how to use the different decoders (tile vs full)
+     * @param value
+     */
+    public void setAlwaysUseTiling(boolean value) {
+        this.alwaysUseTiling = value;
+    }
+
+    public boolean isAlwaysUseTiling() {
+        return alwaysUseTiling;
     }
 
     /**
