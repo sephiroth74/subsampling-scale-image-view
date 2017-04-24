@@ -412,6 +412,10 @@ public class SubsamplingScaleImageView extends View {
         requestLayout();
     }
 
+    public int getFullImageSampleSize() {
+        return fullImageSampleSize;
+    }
+
     /**
      * Set the image source from a bitmap, resource, asset, file or other URI.
      * @param imageSource Image source.
@@ -1319,6 +1323,7 @@ public class SubsamplingScaleImageView extends View {
         // Load double resolution - next level will be split into four tiles and at the center all four are required,
         // so don't bother with tiling until the next level 16 tiles are needed.
         fullImageSampleSize = calculateInSampleSize(satTemp.scale);
+        debug("fullImageSampleSize: %d", fullImageSampleSize);
         if (fullImageSampleSize > 1) {
             fullImageSampleSize /= 2;
         }
@@ -1361,6 +1366,7 @@ public class SubsamplingScaleImageView extends View {
 
             final List<Tile> baseGrid = tileMap.get(fullImageSampleSize);
             for (final Tile baseTile : baseGrid) {
+                baseTile.loading = true;
                 tileLoad(this, decoder, baseTile)
                         .observeOn(AndroidSchedulers.mainThread())
                         .doFinally(new Action() {
@@ -1395,14 +1401,78 @@ public class SubsamplingScaleImageView extends View {
     }
 
     /**
+     * Temporary
+     * Force refresh the base layer and the current visible tiles
+     */
+    public void forceRefreshAllTiles() {
+        refreshRequiredTiles(true, true);
+
+        int sampleSize = Math.min(fullImageSampleSize, calculateInSampleSize(scale));
+
+        if (sampleSize != fullImageSampleSize) {
+            final List<Tile> baseGrid = tileMap.get(fullImageSampleSize);
+            List<Observable<Bitmap>> list = new ArrayList<>();
+
+            Observable<Bitmap> base = null;
+            for (final Tile baseTile : baseGrid) {
+
+                // baseTile.loading = true;
+                Observable<Bitmap> observable = tileLoad(this, decoder, baseTile)
+                        .observeOn(AndroidSchedulers.mainThread())
+                        .doOnNext(new Consumer<Bitmap>() {
+                            @Override
+                            public void accept(@io.reactivex.annotations.NonNull Bitmap bitmap) throws Exception {
+                                if (bitmap != null) {
+                                    baseTile.bitmap = bitmap;
+                                    baseTile.loading = false;
+                                }
+                            }
+                        })
+                        .doOnError(new Consumer<Throwable>() {
+                            @Override
+                            public void accept(@io.reactivex.annotations.NonNull Throwable throwable) throws Exception {
+                                tileLoadError.onNext(throwable);
+                            }
+                        });
+
+                if (base == null) {
+                    base = observable;
+                } else {
+                    base = base.concatWith(observable);
+                }
+
+                list.add(observable);
+            }
+
+            base.observeOn(AndroidSchedulers.mainThread())
+                    .subscribe(new Consumer<Bitmap>() {
+                        @Override
+                        public void accept(@io.reactivex.annotations.NonNull Bitmap bitmap) throws Exception {
+                            onTileLoaded();
+                        }
+                    }, new Consumer<Throwable>() {
+                        @Override
+                        public void accept(@io.reactivex.annotations.NonNull Throwable throwable) throws Exception {
+                            tileLoadError.onNext(throwable);
+                        }
+                    });
+        }
+    }
+
+    private void refreshRequiredTiles(boolean load) {
+        refreshRequiredTiles(load, false);
+    }
+
+    /**
      * Loads the optimum tiles for display at the current scale and translate, so the screen can be filled with tiles
      * that are at least as high resolution as the screen. Frees up bitmaps that are now off the screen.
      * @param load Whether to load the new tiles needed. Use false while scrolling/panning for performance.
      */
-    private void refreshRequiredTiles(boolean load) {
+    private void refreshRequiredTiles(boolean load, boolean force) {
         if (decoder == null || tileMap == null) { return; }
 
         int sampleSize = Math.min(fullImageSampleSize, calculateInSampleSize(scale));
+        debug("refreshRequiredTiles(%b, %b), sampleSize: %d", load, force, sampleSize);
 
         // Load tiles of the correct sample size that are on screen. Discard tiles off screen, and those that are higher
         // resolution than required, or lower res than required but not the base layer, so the base layer is always present.
@@ -1418,7 +1488,8 @@ public class SubsamplingScaleImageView extends View {
                 if (tile.sampleSize == sampleSize) {
                     if (tileVisible(tile)) {
                         tile.visible = true;
-                        if (!tile.loading && tile.bitmap == null && load) {
+                        if (!tile.loading && (tile.bitmap == null || force) && load) {
+                            debug("load tile (%d)!", tile.sampleSize);
                             tileLoad(this, decoder, tile)
                                     .observeOn(AndroidSchedulers.mainThread())
                                     .doFinally(new Action() {
@@ -1431,6 +1502,10 @@ public class SubsamplingScaleImageView extends View {
                                             new Consumer<Bitmap>() {
                                                 @Override
                                                 public void accept(Bitmap bitmap) throws Exception {
+                                                    if (tile.bitmap != null) {
+                                                        tile.bitmap.recycle();
+                                                        tile.bitmap = null;
+                                                    }
                                                     if (bitmap != null) {
                                                         tile.bitmap = bitmap;
                                                         tile.loading = false;
@@ -1758,7 +1833,7 @@ public class SubsamplingScaleImageView extends View {
         final WeakReference<ImageRegionDecoder> decoderRef = new WeakReference<>(decoder);
         final WeakReference<Tile> tileRef = new WeakReference<>(tile);
 
-        tile.loading = true;
+        //tile.loading = true;
 
         return Observable.create(new ObservableOnSubscribe<Bitmap>() {
             @Override
@@ -1776,7 +1851,7 @@ public class SubsamplingScaleImageView extends View {
                     if (view.sRegion != null) {
                         tile.fileSRect.offset(view.sRegion.left, view.sRegion.top);
                     }
-                    decoder.decodeRegion(tile.fileSRect, tile.sampleSize)
+                    decoder.decodeRegion(tile.fileSRect, tile.sampleSize, tile.sampleSize == fullImageSampleSize)
                             .subscribe(new Consumer<Bitmap>() {
                                 @Override
                                 public void accept(Bitmap bitmap) throws Exception {
@@ -1821,7 +1896,7 @@ public class SubsamplingScaleImageView extends View {
             bitmapIsPreview = false;
             bitmapIsCached = false;
         }
-        postInvalidate();
+        invalidate();
     }
 
     Observable<Pair<Bitmap, Integer>> bitmapLoad(

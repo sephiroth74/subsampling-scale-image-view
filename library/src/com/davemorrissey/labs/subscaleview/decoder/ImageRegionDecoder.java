@@ -34,9 +34,10 @@ public interface ImageRegionDecoder {
      * even if the decoder implementation supports it.
      * @param sRect Source image rectangle to decode.
      * @param sampleSize Sample size.
+     * @param isBaseLayer true if the tile is part of the base grid layer
      * @return An Observable with the decoded region
      */
-    Observable<Bitmap> decodeRegion(Rect sRect, int sampleSize);
+    Observable<Bitmap> decodeRegion(Rect sRect, int sampleSize, boolean isBaseLayer);
 
     /**
      * Status check. Should return false before initialisation and after recycle.

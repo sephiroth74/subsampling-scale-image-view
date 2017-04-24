@@ -37,7 +37,7 @@ public class RapidImageRegionDecoder implements ImageRegionDecoder {
     }
 
     @Override
-    public synchronized Observable<Bitmap> decodeRegion(final Rect sRect, final int sampleSize) {
+    public synchronized Observable<Bitmap> decodeRegion(final Rect sRect, final int sampleSize, boolean isBaseLayer) {
         return Observable.create(new ObservableOnSubscribe<Bitmap>() {
             @Override
             public void subscribe(final ObservableEmitter<Bitmap> observableEmitter) throws Exception {

@@ -103,7 +103,7 @@ public class SkiaImageRegionDecoder implements ImageRegionDecoder {
     }
 
     @Override
-    public Observable<Bitmap> decodeRegion(final Rect sRect, final int sampleSize) {
+    public Observable<Bitmap> decodeRegion(final Rect sRect, final int sampleSize, boolean isBaseLayer) {
         return Observable.create(new ObservableOnSubscribe<Bitmap>() {
             @Override
             public void subscribe(ObservableEmitter<Bitmap> observableEmitter) throws Exception {
