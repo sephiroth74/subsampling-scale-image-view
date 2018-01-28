@@ -343,6 +343,13 @@ public class SubsamplingScaleImageView extends View {
     // If set to true will always use the region decoder
     private boolean alwaysUseTiling = false;
 
+    public PointF getTranslate() { return vTranslate; }
+
+    public Matrix getImageMatrix() { return matrix; }
+
+    public Map<Integer, List<Tile>> getTileMap() {
+        return tileMap;
+    }
 
     public SubsamplingScaleImageView(Context context, AttributeSet attr) {
         super(context, attr);
@@ -1911,7 +1918,7 @@ public class SubsamplingScaleImageView extends View {
             @Override
             public void subscribe(ObservableEmitter<ImageDecoder> observableEmitter) throws Exception {
                 DecoderFactory<? extends ImageDecoder> factory = decoderFactoryRef.get();
-                if (observableEmitter.isDisposed() && null != factory)
+                if (!observableEmitter.isDisposed() && null != factory)
                     observableEmitter.onNext(factory.make());
 
             }
@@ -2037,13 +2044,29 @@ public class SubsamplingScaleImageView extends View {
         return exifOrientation;
     }
 
-    private static class Tile {
+    public static class Tile {
 
         private Rect sRect;
         private int sampleSize;
-        private Bitmap bitmap;
-        private boolean loading;
+        public Bitmap bitmap;
+        public boolean loading;
         private boolean visible;
+        public long time;
+
+        public void setBitmap(final Bitmap b) {
+            if(null != bitmap) {
+                bitmap.recycle();
+                bitmap = null;
+                loading = true;
+            }
+
+            if(null != b) {
+                bitmap = b;
+                loading = false;
+            }
+
+            time = System.currentTimeMillis();
+        }
 
         // Volatile fields instantiated once then updated before use to reduce GC.
         private Rect vRect;
